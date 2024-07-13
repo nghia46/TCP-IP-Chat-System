@@ -1,49 +1,48 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
 
-class Program
+namespace Sever;
+
+abstract class Program
 {
-    private static List<TcpClient> clients = new List<TcpClient>();
-    private static TcpListener server;
+    private static List<TcpClient?>? _clients = new();
+    private static TcpListener? _server;
 
     static void Main(string[] args)
     {
-        IPAddress iPAddress = IPAddress.Parse("127.0.0.1");
-        int port = 13000;
-        server = new TcpListener(iPAddress, port);
-        server.Start();
+        var iPAddress = IPAddress.Parse("127.0.0.1");
+        const int port = 13000;
+        _server = new TcpListener(iPAddress, port);
+        _server.Start();
         Console.WriteLine($"Chat server started on ip:{iPAddress} port:{port})");
 
         // Start a thread to read server messages
-        Thread serverThread = new Thread(ReadServerInput);
+        var serverThread = new Thread(ReadServerInput);
         serverThread.Start();
 
         while (true)
         {
-            TcpClient client = server.AcceptTcpClient();
-            clients.Add(client);
+            var client = _server.AcceptTcpClient();
+            _clients?.Add(client);
             Console.WriteLine("Client connected!");
 
-            Thread clientThread = new Thread(() => HandleClient(client));
+            var clientThread = new Thread(() => HandleClient(client));
             clientThread.Start();
         }
     }
 
-    private static void HandleClient(TcpClient client)
+    private static void HandleClient(TcpClient? client)
     {
-        NetworkStream stream = client.GetStream();
-        byte[] buffer = new byte[1024];
-        int bytesRead;
+        var stream = client?.GetStream();
+        var buffer = new byte[1024];
 
         try
         {
+            int bytesRead;
             while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) != 0)
             {
-                string message = Encoding.Unicode.GetString(buffer, 0, bytesRead);
+                var message = Encoding.Unicode.GetString(buffer, 0, bytesRead);
                 Console.WriteLine($"Received from client: {message}");
                 BroadcastMessage("Client: " + message, client);
             }
@@ -54,32 +53,29 @@ class Program
         }
         finally
         {
-            clients.Remove(client);
+            _clients?.Remove(client);
             client.Close();
             Console.WriteLine("Client disconnected.");
         }
     }
 
-    private static void BroadcastMessage(string message, TcpClient sender)
+    private static void BroadcastMessage(string message, TcpClient? sender)
     {
-        byte[] msgBuffer = Encoding.UTF32.GetBytes(message);
-
-        foreach (var client in clients)
+        var msgBuffer = Encoding.UTF32.GetBytes(message);
+            
+        foreach (var client in _clients)
         {
-            if (client != sender)
-            {
-                NetworkStream stream = client.GetStream();
-                stream.Write(msgBuffer, 0, msgBuffer.Length);
-            }
+            if (client == sender) continue;
+            var stream = client?.GetStream();
+            stream?.Write(msgBuffer, 0, msgBuffer.Length);
         }
     }
 
     private static void ReadServerInput()
     {
-        string serverMessage;
         while (true)
         {
-            serverMessage = Console.ReadLine();
+            var serverMessage = Console.ReadLine();
             BroadcastMessage("Server: " + serverMessage, null); // null for sender means broadcast
         }
     }
