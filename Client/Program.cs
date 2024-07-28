@@ -42,7 +42,7 @@ class Program
                 bytesRead = stream.Read(buffer, 0, buffer.Length);
                 if (bytesRead > 0)
                 {
-                    string receivedMessage = Encoding.UTF32.GetString(buffer, 0, bytesRead);
+                    string receivedMessage = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                     Console.WriteLine(receivedMessage);
                 }
             }
